@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <netdb.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,6 +12,7 @@
 #include <termios.h>
 #include <unistd.h>
 #include <sys/socket.h>
+#include <sys/wait.h>
 
 #include "duplex.h"
 #include "x25519.h"
@@ -220,6 +222,50 @@ static void detach(void *(*start)(void *), void *arg) {
     err(EXIT_FAILURE, "pthread_detach");
 }
 
+static void spawn(int *child, int *input, int *output, char **argv) {
+  int fd[4];
+
+  if (argv[0] == NULL)
+    return;
+  if (pipe(fd) < 0 || pipe(fd + 2) < 0)
+    err(EXIT_FAILURE, "pipe");
+  if ((*child = fork()) < 0)
+    err(EXIT_FAILURE, "fork");
+
+  if (*child == 0) {
+    if (dup2(fd[0], STDIN_FILENO) < 0)
+      err(EXIT_FAILURE, "dup2");
+    if (dup2(fd[3], STDOUT_FILENO) < 0)
+      err(EXIT_FAILURE, "dup2");
+    for (int i = 0; i < 4; i++)
+      close(fd[i]);
+    execvp(argv[0], argv);
+    err(EXIT_FAILURE, "exec");
+  }
+
+  *input = fd[2];
+  *output = fd[1];
+  close(fd[0]);
+  close(fd[3]);
+}
+
+static void *reap(void *arg) {
+  pid_t child = *((pid_t **) arg)[0];
+  int *status = ((int **) arg)[1];
+  int *events = ((int **) arg)[2];
+
+  if (child != 0) {
+    waitpid(child, status, 0);
+    if (WIFEXITED(*status))
+      *status = WEXITSTATUS(*status);
+    else
+      *status = EXIT_FAILURE;
+    close(events[1]);
+  }
+  close(events[5]);
+  return NULL;
+}
+
 static void *receive(void *arg) {
   int input = *((int **) arg)[0];
   int output = *((int **) arg)[1];
@@ -281,28 +327,33 @@ int main(int argc, char **argv) {
   char *rendezvous = getenv("SERVER") ?: SERVER;
   int input = fcntl(STDIN_FILENO, F_GETFD) < 0 ? -1 : STDIN_FILENO;
   int output = fcntl(STDOUT_FILENO, F_GETFD) < 0 ? -1 : STDOUT_FILENO;
-  int events[4], server;
+  int events[6], server, status = EXIT_SUCCESS;
+  pid_t child = 0;
 
-  if (argc == 2 && strcmp(argv[1], "initiate") == 0) {
+  signal(SIGPIPE, SIG_IGN);
+  if (argc >= 2 && strcmp(argv[1], "initiate") == 0) {
     server = initiate(rendezvous);
-  } else if (argc == 2 && strcmp(argv[1], "respond") == 0) {
+  } else if (argc >= 2 && strcmp(argv[1], "respond") == 0) {
     server = respond(rendezvous);
   } else {
     dprintf(STDERR_FILENO,
-      "Usage: %s (initiate|respond)\n", argv[0]);
+      "Usage: %s (initiate|respond) [CMD]...\n", argv[0]);
     return 64;
   }
   exchange(server);
   verify();
 
-  for (int i = 0; i < 4; i += 2)
+  spawn(&child, &input, &output, argv + 2);
+
+  for (int i = 0; i < 6; i += 2)
     if (pipe(events + i) < 0)
       err(EXIT_FAILURE, "pipe");
 
+  detach(reap, (void *[]) { &child, &status, events });
   detach(receive, (void *[]) { &server, &output, events });
   detach(transmit, (void *[]) { &input, &server, events });
 
-  for (int i = 0; i < 4; i += 2)
+  for (int i = 0; i < 6; i += 2)
     while (read(events[i], &(char) { 0 }, 1) != 0);
-  return EXIT_SUCCESS;
+  return status;
 }

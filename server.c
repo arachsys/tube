@@ -87,6 +87,15 @@ static void attach(const char *address) {
   freeaddrinfo(list);
 }
 
+static void keepalive(int client) {
+#if defined(TCP_KEEPCNT) && defined(TCP_KEEPIDLE) && defined(TCP_KEEPINTVL)
+  setsockopt(client, IPPROTO_TCP, TCP_KEEPCNT, &(int) { 8 }, sizeof(int));
+  setsockopt(client, IPPROTO_TCP, TCP_KEEPIDLE, &(int) { 120 }, sizeof(int));
+  setsockopt(client, IPPROTO_TCP, TCP_KEEPINTVL, &(int) { 15 }, sizeof(int));
+#endif
+  setsockopt(client, SOL_SOCKET, SO_KEEPALIVE, &(int) { 1 }, sizeof(int));
+}
+
 static void suspend(void) {
   for (size_t id = clients; id < clients + listeners; id++)
     fd[id].events = 0;
@@ -101,8 +110,10 @@ static void new(size_t listener) {
   for (size_t id = 0; id < clients; id++)
     if (fd[id].fd < 0) {
       fd[id].fd = accept(fd[listener].fd, NULL, NULL);
-      if (fd[id].fd >= 0)
+      if (fd[id].fd >= 0) {
         fd[id].events = POLLIN;
+        keepalive(fd[id].fd);
+      }
       return;
     }
   suspend();

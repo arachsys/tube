@@ -259,6 +259,7 @@ int main(int argc, char **argv) {
     if (poll(fd, clients + listeners, -1) < 0) {
       if (errno == EINTR)
         continue;
+      warnx("Use ulimit -n to increase the file descriptor limit");
       err(EXIT_FAILURE, "poll");
     }
 

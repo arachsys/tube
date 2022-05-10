@@ -214,6 +214,24 @@ static void update(size_t id) {
     drop(id);
 }
 
+void sandbox(void) {
+#if defined(CHROOT) && defined(CHUSER)
+  if (getuid() == 0) {
+    struct passwd *pw = getpwnam(CHUSER);
+    if (pw == NULL)
+      errx(EXIT_FAILURE, "getpwnam %s: User does not exist", CHUSER);
+    if (chdir(CHROOT) < 0 || chroot(".") < 0)
+      err(EXIT_FAILURE, "chroot %s", CHROOT);
+    if (setgid(pw->pw_gid) < 0)
+      err(EXIT_FAILURE, "setgid %u", pw->pw_gid);
+    if (setgroups(0, NULL) < 0)
+      err(EXIT_FAILURE, "setgroups");
+    if (setuid(pw->pw_uid) < 0)
+      err(EXIT_FAILURE, "setuid %u", pw->pw_uid);
+  }
+#endif
+}
+
 int main(int argc, char **argv) {
   if (argc < 2) {
     dprintf(STDERR_FILENO, "Usage: %s HOST:PORT...\n", argv[0]);
@@ -224,6 +242,7 @@ int main(int argc, char **argv) {
   signal(SIGPIPE, SIG_IGN);
   for (int address = 1; address < argc; address++)
     attach(argv[address]);
+  sandbox();
 
   while (1) {
     if (poll(fd, clients + listeners, -1) < 0) {

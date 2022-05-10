@@ -1,4 +1,6 @@
 BINDIR := $(PREFIX)/bin
+CHROOT := /run/empty
+CHUSER := nobody
 SERVER := tube.cdw.me.uk:3456
 
 CFLAGS := -march=native -O3 -Wall -Wfatal-errors
@@ -9,6 +11,8 @@ tube-client: override CFLAGS += -DSERVER=\"$(SERVER)\"
 tube-client: client.c duplex.h x25519.[ch] Makefile
 	$(CC) $(CFLAGS) -pthread -o $@ $(filter %.c,$^)
 
+tube-server: override CFLAGS += -DCHROOT=\"$(CHROOT)\"
+tube-server: override CFLAGS += -DCHUSER=\"$(CHUSER)\"
 tube-server: server.c Makefile
 	$(CC) $(CFLAGS) -o $@ $(filter %.c,$^)
 

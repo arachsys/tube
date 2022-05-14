@@ -1,0 +1,54 @@
+#!/bin/sh
+
+if rsync --help 2>&1 | grep -q -- --info; then
+  ACTION= DELETE= OUTPUT=--info=progress2
+else
+  ACTION= DELETE= OUTPUT=--verbose
+fi
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --helper)
+      exec tube-client respond
+      ;;
+    -d | --delete)
+      DELETE=--delete
+      ;;
+    -n | --dry-run)
+      ACTION=--dry-run
+      ;;
+    -q | --quiet)
+      OUTPUT=--quiet
+      ;;
+    -v | --verbose)
+      OUTPUT=--verbose
+      ;;
+    -*)
+      set --
+      ;;
+    *)
+      break
+      ;;
+  esac
+  shift 1
+done
+
+if [ $# -ne 1 ]; then
+  cat <<EOF >&2
+Usage: ${0##*/} [OPTIONS] DSTDIR
+Options:
+  -d, --delete     delete files that don't exist in the source directory
+  -n, --dry-run    show files that would be modified without making changes
+  -q, --quiet      suppress normal progress messages
+  -v, --verbose    list all files that are created, modified or deleted
+EOF
+  exit 64
+fi
+
+if [ -e "$1" ] && [ ! -d "$1" ]; then
+  printf '%s exists but is not a directory\n' "$1" >&2
+  exit 1
+fi
+
+exec rsync --rsh="$0 --helper" --recursive --owner --group --perms --times \
+  --links --hard-links --compress $ACTION $DELETE $OUTPUT -- ::src/ "$1/"

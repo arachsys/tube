@@ -1,0 +1,12 @@
+#!/bin/sh
+
+if [ $# -eq 0 ]; then
+  exec tube-client initiate >&-
+fi
+
+if [ $# -eq 1 ] && [ -f "$1" ]; then
+  exec tube-client initiate >&- < "$1"
+fi
+
+echo "Usage: ${0##*/} [FILE]" >&2
+exit 64

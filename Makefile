@@ -19,6 +19,7 @@ tube-server: server.c Makefile
 install: tube-client tube-server
 	mkdir -p $(DESTDIR)$(BINDIR)
 	install -s $^ $(DESTDIR)$(BINDIR)
+	install examples/* $(DESTDIR)$(BINDIR)
 
 clean:
 	rm -f tube-client tube-server *.o

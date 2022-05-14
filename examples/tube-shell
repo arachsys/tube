@@ -1,0 +1,18 @@
+#!/bin/sh
+
+if [ $# -eq 1 ] && [ "$1" = "invite" ]; then
+  exec tube-client initiate script -q /dev/null
+fi
+
+if [ $# -eq 1 ] && [ "$1" = "login" ]; then
+  if STATE=$(stty -g) && stty raw -echo; then
+    if tube-client respond; then
+      stty "$STATE" && exit 0
+    else
+      stty "$STATE" && printf '\r' && exit 1
+    fi
+  fi
+fi
+
+echo "Usage: ${0##*/} (invite|login)" >&2
+exit 64

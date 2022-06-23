@@ -112,6 +112,7 @@ static void new(size_t listener) {
       fd[id].fd = accept(fd[listener].fd, NULL, NULL);
       if (fd[id].fd >= 0) {
         fd[id].events = POLLIN;
+        fcntl(fd[id].fd, F_SETFL, O_NONBLOCK);
         keepalive(fd[id].fd);
       }
       return;

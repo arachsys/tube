@@ -36,7 +36,7 @@ static void store(uint8_t *data, size_t length, uintmax_t value) {
 }
 
 static void randomise(void *data, size_t length) {
-  extern int getentropy(void *data, size_t length);
+  int getentropy(void *data, size_t length);
   if (getentropy(data, length) < 0)
     err(EXIT_FAILURE, "getentropy");
 }

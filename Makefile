@@ -5,16 +5,16 @@ SERVER := tube.cdw.me.uk:3456
 
 CFLAGS := -march=native -O3 -Wall -Wfatal-errors
 
+tube-%:: %.c Makefile
+	$(CC) $(CFLAGS) -o $@ $(filter %.c,$^)
+
 all: tube-client tube-server
 
-tube-client: override CFLAGS += -DSERVER=\"$(SERVER)\"
-tube-client: client.c duplex.h x25519.[ch] Makefile
-	$(CC) $(CFLAGS) -pthread -o $@ $(filter %.c,$^)
+tube-client: override CFLAGS += -DSERVER=\"$(SERVER)\" -pthread
+tube-client: duplex.h x25519.[ch]
 
 tube-server: override CFLAGS += -DCHROOT=\"$(CHROOT)\"
 tube-server: override CFLAGS += -DCHUSER=\"$(CHUSER)\"
-tube-server: server.c Makefile
-	$(CC) $(CFLAGS) -o $@ $(filter %.c,$^)
 
 install: tube-client tube-server
 	mkdir -p $(DESTDIR)$(BINDIR)
@@ -22,6 +22,6 @@ install: tube-client tube-server
 	install examples/* $(DESTDIR)$(BINDIR)
 
 clean:
-	rm -f tube-client tube-server *.o
+	rm -f tube-client tube-server
 
-.PHONY: clean install
+.PHONY: all clean install

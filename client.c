@@ -98,7 +98,8 @@ static void interact(char *reply, size_t size, const char *format, ...) {
     while ((length = read(tty, reply, size - 1)) < 0)
       if (errno != EAGAIN && errno != EINTR)
         err(EXIT_FAILURE, "read /dev/tty");
-    length -= reply[length - 1] == '\n';
+    if (length > 0 && reply[length - 1] == '\n')
+      length--;
     reply[length] = 0;
   }
   tcsetattr(tty, TCSAFLUSH, &old);

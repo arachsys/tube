@@ -1,17 +1,16 @@
 #!/bin/sh
 
-if [ $# -eq 1 ] && [ "$1" = "invite" ]; then
-  exec tube-client initiate script -q /dev/null
+if [ $# -eq 1 ] && [ "$1" = "invite" ] && STATE=$(stty -g); then
+  stty raw -echo && tube-client initiate \
+    sh -c 'script -q /dev/null | tee /dev/tty'
+  EXIT=$? && printf '\r' && stty $STATE
+  exit $EXIT
 fi
 
-if [ $# -eq 1 ] && [ "$1" = "login" ]; then
-  if STATE=$(stty -g) && stty raw -echo; then
-    if tube-client respond; then
-      stty "$STATE" && exit 0
-    else
-      stty "$STATE" && printf '\r' && exit 1
-    fi
-  fi
+if [ $# -eq 1 ] && [ "$1" = "login" ] && STATE=$(stty -g); then
+  stty raw -echo && tube-client respond
+  EXIT=$? && printf '\r' && stty $STATE
+  exit $EXIT
 fi
 
 echo "Usage: ${0##*/} (invite|login)" >&2

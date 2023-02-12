@@ -161,8 +161,8 @@ static int respond(const char *rendezvous) {
 
   interact(code, sizeof(code), "Code: ");
   for (id = strtoul(code, &cursor, 10); *cursor != 0; cursor++)
-    if (isalnum(*cursor))
-      code[length++] = tolower(*cursor);
+    if (isalnum((uint8_t) *cursor))
+      code[length++] = tolower((uint8_t) *cursor);
   if (id == 0 || length == 0)
     errx(EXIT_FAILURE, "Invalid code");
 
@@ -210,8 +210,9 @@ static void verify(void) {
   code[check] = 0;
 
   interact(reply, sizeof(reply), "Verify: %s? ", code);
-  for (size_t i = 0; reply[i] && tolower(reply[i]) != 'y'; i++)
-    if (isgraph(reply[i]))
+
+  for (size_t i = 0; reply[i] && tolower((uint8_t) reply[i]) != 'y'; i++)
+    if (isgraph((uint8_t) reply[i]))
       exit(EXIT_FAILURE);
 }
 
